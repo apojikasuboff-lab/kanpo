@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>漢方重量計算</title>
+  <style>
+    body { font-family: sans-serif; padding: 15px; max-width: 500px; margin: auto; background-color: #f8f9fa; color: #333; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    
+    .input-group { display: flex; align-items: center; margin-bottom: 15px; }
+    .input-group label { flex: 1; font-weight: bold; font-size: 1.1em; }
+    .note { font-size: 0.75em; color: #666; font-weight: normal; margin-left: 5px; }
+    .input-group input { width: 100px; padding: 10px; font-size: 1.2em; text-align: right; border: 1px solid #ccc; border-radius: 4px; }
+    
+    hr { border: none; border-top: 1px dashed #ccc; margin: 20px 0; }
+    
+    .total-group { background: #f1f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    .total-group .input-group { margin-bottom: 0; }
+    .total-group label { color: #0056b3; }
+    .total-group input { border: 2px solid #0056b3; background: #fff; font-weight: bold; color: #0056b3; }
+
+    .result-box { margin-top: 10px; }
+    .result-item { padding: 15px; margin-bottom: 10px; border-radius: 6px; text-align: center; font-size: 1.3em; font-weight: bold; }
+    .result-25 { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .result-30 { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    
+    .weight-val { font-size: 1.5em; margin-left: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2 style="text-align: center; color: #444;">漢方 総重量計算</h2>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="box">箱数 <span class="note">(×42包)</span></label>
+      <input type="number" id="box" placeholder="0" inputmode="numeric">
+    </div>
+    
+    <div class="input-group">
+      <label for="bundle">束数 <span class="note">(×21包)</span></label>
+      <input type="number" id="bundle" placeholder="0" inputmode="numeric">
+    </div>
+    
+    <div class="input-group">
+      <label for="pack">包数 <span class="note">(バラ)</span></label>
+      <input type="number" id="pack" placeholder="0" inputmode="numeric">
+    </div>
+
+    <div class="total-group">
+      <div class="input-group">
+        <label for="total">合計包数</label>
+        <input type="number" id="total" placeholder="0" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="result-box">
+      <div class="result-item result-25">
+        2.5 g / 包 <span class="weight-val" id="out25">0.0 g</span>
+      </div>
+      <div class="result-item result-30">
+        3.0 g / 包 <span class="weight-val" id="out30">0.0 g</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const elBox = document.getElementById('box');
+    const elBundle = document.getElementById('bundle');
+    const elPack = document.getElementById('pack');
+    const elTotal = document.getElementById('total');
+    const out25 = document.getElementById('out25');
+    const out30 = document.getElementById('out30');
+
+    function calcTotalPacks() {
+      const box = parseInt(elBox.value, 10) || 0;
+      const bundle = parseInt(elBundle.value, 10) || 0;
+      const pack = parseInt(elPack.value, 10) || 0;
+      
+      const total = (box * 42) + (bundle * 21) + pack;
+      elTotal.value = total > 0 ? total : '';
+      updateWeights(total);
+    }
+
+    function updateWeights(totalPacks) {
+      const weight25 = totalPacks * 2.5;
+      const weight30 = totalPacks * 3.0;
+      out25.innerText = weight25.toFixed(1) + ' g';
+      out30.innerText = weight30.toFixed(1) + ' g';
+    }
+
+    elBox.addEventListener('input', calcTotalPacks);
+    elBundle.addEventListener('input', calcTotalPacks);
+    elPack.addEventListener('input', calcTotalPacks);
+
+    elTotal.addEventListener('input', function() {
+      const total = parseInt(elTotal.value, 10) || 0;
+      updateWeights(total);
+      
+      elBox.value = '';
+      elBundle.value = '';
+      elPack.value = '';
+    });
+
+    // ▼▼▼ 今回追加した部分 ▼▼▼
+    // すべての入力欄に対して、タップ（フォーカス）時にテキストを全選択する処理を追加
+    document.querySelectorAll('input[type="number"]').forEach(function(input) {
+      input.addEventListener('focus', function() {
+        // iPhoneなどのスマホブラウザで確実に動作させるため、ごくわずかな遅延を挟んで全選択します
+        setTimeout(() => {
+          this.select();
+        }, 10);
+      });
+    });
+    // ▲▲▲ 今回追加した部分 ▲▲▲
+
+  </script>
+
+</body>
+</html>
