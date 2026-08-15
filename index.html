@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>品目実績検索</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  body { font-family: sans-serif; margin: 20px; }
+  #search { width: 300px; padding: 8px; font-size: 16px; margin-bottom: 12px; }
+  .table-container { max-height: 80vh; overflow: auto; border: 1px solid #ccc; }
+  table { border-collapse: collapse; width: 100%; white-space: nowrap; font-size: 13px; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #f9f9f9; z-index: 1; }
+  thead th { position: sticky; top: 0; background: #eee; z-index: 2; }
+  thead th:first-child { z-index: 3; }
+</style>
+</head>
+<body>
+
+<input type="text" id="search" placeholder="品目名を入力（部分一致）...">
+<span id="count"></span>
+
+<div class="table-container">
+  <table id="result-table">
+    <thead id="tbl-head"></thead>
+    <tbody id="tbl-body"></tbody>
+  </table>
+</div>
+
+<script>
+let rawData = [];
+let headers = [];
+
+// data.csv を読み込み
+Papa.parse("data.csv", {
+  download: true,
+  skipEmptyLines: true,
+  complete: function(results) {
+    headers = results.data[0];
+    rawData = results.data.slice(1);
+    renderHeader();
+    renderRows(rawData.slice(0, 100)); // 初期表示は先頭100件
+  }
+});
+
+function renderHeader() {
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  document.getElementById('tbl-head').appendChild(tr);
+}
+
+function renderRows(rows) {
+  const tbody = document.getElementById('tbl-body');
+  tbody.innerHTML = '';
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+// 検索イベント（1列目を部分一致検索、上位200件まで描画）
+document.getElementById('search').addEventListener('input', function(e) {
+  const query = e.target.value.toLowerCase().trim();
+  if (!query) {
+    renderRows(rawData.slice(0, 100));
+    document.getElementById('count').textContent = `全 ${rawData.length} 件中 100 件表示`;
+    return;
+  }
+  const matched = rawData.filter(row => row[0] && row[0].toLowerCase().includes(query));
+  renderRows(matched.slice(0, 200));
+  document.getElementById('count').textContent = `該当 ${matched.length} 件（表示最大200件）`;
+});
+</script>
+</body>
+</html>
