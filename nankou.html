@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>軟膏重量計算</title>
+  <style>
+    /* 全体の幅を500pxから400pxに狭くし、よりコンパクトに */
+    body { font-family: sans-serif; padding: 15px; max-width: 400px; margin: auto; background-color: #f8f9fa; color: #333; }
+    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    
+    /* タイトルの上下の余白を狭くしました */
+    h2 { text-align: center; color: #444; margin: 5px 0 15px 0; font-size: 1.3em; }
+    
+    .input-group { display: flex; align-items: center; margin-bottom: 15px; }
+    .input-group label { flex: 1; font-weight: bold; font-size: 1.05em; }
+    .note { font-size: 0.75em; color: #666; font-weight: normal; margin-left: 5px; }
+    .input-group input { width: 90px; padding: 8px; font-size: 1.2em; text-align: right; border: 1px solid #ccc; border-radius: 4px; }
+    
+    .result-box { margin-top: 10px; display: grid; gap: 10px; }
+    .result-item { padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; }
+    
+    /* 4種類の計算結果を色分けして見やすく */
+    .result-5 { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
+    .result-10 { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .result-20 { background-color: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+    .result-25 { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    
+    .weight-val { font-size: 1.3em; }
+  </style>
+</head>
+<body>
+
+  <h2>軟膏 重量計算</h2>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="box">箱数 <span class="note">(×10本)</span></label>
+      <input type="number" id="box" placeholder="0" inputmode="numeric">
+    </div>
+    
+    <div class="input-group">
+      <label for="tube">本数</label>
+      <input type="number" id="tube" placeholder="0" inputmode="numeric">
+    </div>
+    
+    <div class="input-group">
+      <label for="yosei">予製 <span class="note">(g)</span></label>
+      <input type="number" id="yosei" placeholder="0" inputmode="decimal">
+    </div>
+
+    <div class="result-box">
+      <div class="result-item result-5">
+        <span>5 g / 本</span> <span class="weight-val" id="out5">0.0 g</span>
+      </div>
+      <div class="result-item result-10">
+        <span>10 g / 本</span> <span class="weight-val" id="out10">0.0 g</span>
+      </div>
+      <div class="result-item result-20">
+        <span>20 g / 本</span> <span class="weight-val" id="out20">0.0 g</span>
+      </div>
+      <div class="result-item result-25">
+        <span>25 g / 本</span> <span class="weight-val" id="out25">0.0 g</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const elBox = document.getElementById('box');
+    const elTube = document.getElementById('tube');
+    const elYosei = document.getElementById('yosei');
+    
+    const out5 = document.getElementById('out5');
+    const out10 = document.getElementById('out10');
+    const out20 = document.getElementById('out20');
+    const out25 = document.getElementById('out25');
+
+    function updateWeights() {
+      const box = parseInt(elBox.value, 10) || 0;
+      const tube = parseInt(elTube.value, 10) || 0;
+      // 予製は小数点(0.5gなど)の入力も考慮して parseFloat を使用
+      const yosei = parseFloat(elYosei.value) || 0;
+      
+      const totalTubes = (box * 10) + tube;
+      
+      // 総本数 × 1本あたりのg数 ＋ 予製(g) を計算
+      out5.innerText = (totalTubes * 5 + yosei).toFixed(1) + ' g';
+      out10.innerText = (totalTubes * 10 + yosei).toFixed(1) + ' g';
+      out20.innerText = (totalTubes * 20 + yosei).toFixed(1) + ' g';
+      out25.innerText = (totalTubes * 25 + yosei).toFixed(1) + ' g';
+    }
+
+    elBox.addEventListener('input', updateWeights);
+    elTube.addEventListener('input', updateWeights);
+    elYosei.addEventListener('input', updateWeights);
+
+    // タップ時に全選択する処理
+    document.querySelectorAll('input').forEach(function(input) {
+      input.addEventListener('focus', function() {
+        setTimeout(() => {
+          this.select();
+        }, 10);
+      });
+    });
+  </script>
+
+</body>
+</html>
