@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>軟膏(壺)残量計算</title>
+  <style>
+    body { font-family: sans-serif; padding: 15px; max-width: 400px; margin: auto; background-color: #f8f9fa; color: #333; }
+    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    
+    h2 { text-align: center; color: #444; margin: 5px 0 15px 0; font-size: 1.3em; }
+    
+    .input-group { display: flex; align-items: center; margin-bottom: 15px; }
+    .input-group label { flex: 1; font-weight: bold; font-size: 1.05em; }
+    .note { font-size: 0.75em; color: #666; font-weight: normal; margin-left: 5px; }
+    .input-group input { width: 100px; padding: 8px; font-size: 1.2em; text-align: right; border: 1px solid #ccc; border-radius: 4px; }
+    
+    .result-box { margin-top: 20px; display: grid; gap: 10px; }
+    .result-item { padding: 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 1.2em; font-weight: bold; }
+    
+    /* 500gと100gで色分け */
+    .result-500 { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .result-100 { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    
+    .weight-val { font-size: 1.4em; }
+  </style>
+</head>
+<body>
+
+  <h2>軟膏(壺) 残量計算</h2>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="pot">壺数</label>
+      <input type="number" id="pot" placeholder="0" inputmode="numeric">
+    </div>
+    
+    <div class="input-group">
+      <label for="keiryo">計量 <span class="note">(マイナスする量 g)</span></label>
+      <input type="number" id="keiryo" placeholder="0" inputmode="decimal">
+    </div>
+
+    <div class="result-box">
+      <div class="result-item result-500">
+        <span>500 g / 壺</span> <span class="weight-val" id="out500">0.0 g</span>
+      </div>
+      <div class="result-item result-100">
+        <span>100 g / 壺</span> <span class="weight-val" id="out100">0.0 g</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const elPot = document.getElementById('pot');
+    const elKeiryo = document.getElementById('keiryo');
+    
+    const out500 = document.getElementById('out500');
+    const out100 = document.getElementById('out100');
+
+    function updateWeights() {
+      // 入力がない場合は0として計算
+      const pots = parseInt(elPot.value, 10) || 0;
+      // 小数点での計量も想定して parseFloat を使用
+      const keiryo = parseFloat(elKeiryo.value) || 0;
+      
+      // 計算式： (壺数 × グラム) － 計量
+      const res500 = (pots * 500) - keiryo;
+      const res100 = (pots * 100) - keiryo;
+      
+      // 結果を表示（小数点第1位まで）
+      out500.innerText = res500.toFixed(1) + ' g';
+      out100.innerText = res100.toFixed(1) + ' g';
+    }
+
+    elPot.addEventListener('input', updateWeights);
+    elKeiryo.addEventListener('input', updateWeights);
+
+    // タップ時に数字を全選択する処理（連続入力用）
+    document.querySelectorAll('input').forEach(function(input) {
+      input.addEventListener('focus', function() {
+        setTimeout(() => {
+          this.select();
+        }, 10);
+      });
+    });
+  </script>
+
+</body>
+</html>
