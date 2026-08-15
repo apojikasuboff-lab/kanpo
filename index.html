@@ -22,7 +22,6 @@
     font-size: 15px; 
     border: 1px solid #ccc;
     border-radius: 4px;
-    ime-mode: active;
   }
   #count {
     font-size: 13px;
@@ -82,7 +81,7 @@
     writing-mode: vertical-rl;
     text-orientation: mixed;
     letter-spacing: 1px;
-    height: 110px;        /* 縦書き領域の高さ（店舗名の長さに応じて調整可） */
+    height: 110px;
     vertical-align: bottom;
     padding: 8px 4px;
     min-width: 28px;
@@ -100,7 +99,7 @@
 <body>
 
 <div class="search-container">
-  <input type="text" id="search" placeholder="品目名を入力（全角・半角対応）...">
+  <input type="text" id="search" placeholder="品目名を入力...">
   <span id="count">読み込み中...</span>
 </div>
 
@@ -114,19 +113,42 @@
 <script>
 let rawData = [];
 let headers = [];
+let isComposing = false; // 日本語入力（IME）変換中フラグ
 
-// 全角英数・記号・スペースを半角に正規化する関数
-function normalizeText(str) {
+// 全角（英数・記号・カナ・スペース）を半角に変換するマッピング
+const kanaMap = {
+  'ガ':'ｶﾞ', 'ギ':'ｷﾞ', 'グ':'ｸﾞ', 'ゲ':'ｹﾞ', 'ゴ':'ｺﾞ',
+  'ザ':'ｻﾞ', 'ジ':'ｼﾞ', 'ズ':'ｽﾞ', 'ゼ':'ｾﾞ', 'ゾ':'ｿﾞ',
+  'ダ':'ﾀﾞ', 'ヂ':'ﾁﾞ', 'ヅ':'ﾂﾞ', 'デ':'ﾃﾞ', 'ド':'ﾄﾞ',
+  'バ':'ﾊﾞ', 'ビ':'ﾋﾞ', 'ブ':'ﾌﾞ', 'ベ':'ﾍﾞ', 'ボ':'ﾎﾞ',
+  'パ':'ﾊﾟ', 'ピ':'ﾋﾟ', 'プ':'ﾌﾟ', 'ペ':'ﾍﾟ', 'ポ':'ﾎﾟ',
+  'ヴ':'ｳﾞ', 'ヷ':'ﾜﾞ', 'ヺ':'ｦﾞ',
+  'ア':'ｱ', 'イ':'ｲ', 'ウ':'ｳ', 'エ':'ｴ', 'オ':'ｵ',
+  'カ':'ｶ', 'キ':'ｷ', 'ク':'ｸ', 'ケ':'ｹ', 'コ':'ｺ',
+  'サ':'ｻ', 'シ':'ｼ', 'ス':'ｽ', 'セ':'ｾ', 'ソ':'ｿ',
+  'タ':'ﾀ', 'チ':'ﾁ', 'ツ':'ﾂ', 'テ':'ﾃ', 'ト':'ﾄ',
+  'ナ':'ﾅ', 'ニ':'ﾆ', 'ヌ':'ﾇ', 'ネ':'ﾈ', 'ノ':'ﾉ',
+  'ハ':'ﾊ', 'ヒ':'ﾋ', 'フ':'ﾌ', 'ヘ':'ﾍ', 'ホ':'ﾎ',
+  'マ':'ﾏ', 'ミ':'ﾐ', 'ム':'ﾑ', 'メ':'ﾒ', 'モ':'ﾓ',
+  'ヤ':'ﾔ', 'ユ':'ﾕ', 'ヨ':'ﾖ',
+  'ラ':'ﾗ', 'リ':'ﾘ', 'ル':'ﾙ', 'レ':'ﾚ', 'ロ':'ﾛ',
+  'ワ':'ﾜ', 'ヲ':'ｦ', 'ン':'ﾝ',
+  'ァ':'ｧ', 'ィ':'ｨ', 'ゥ':'ｩ', 'ェ':'ｪ', 'ォ':'ｫ',
+  'ッ':'ｯ', 'ャ':'ｬ', 'ュ':'ｭ', 'ョ':'ｮ',
+  'ー':'ｰ', '・':'･', '「':'｢', '」':'｣', '、':'､', '。':'｡'
+};
+const kanaRegex = new RegExp('(' + Object.keys(kanaMap).join('|') + ')', 'g');
+
+// 文字列を半角へ一括変換する関数
+function toHalfWidth(str) {
   if (!str) return '';
   return str
-    // 全角英数を半角に変換
-    .replace(/[！-～]/g, function(s) {
-      return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
-    })
-    // 全角スペースを半角スペースに変換
-    .replace(/ /g, ' ')
-    .toLowerCase()
-    .trim();
+    // 全角カタカナ -> 半角カタカナ
+    .replace(kanaRegex, match => kanaMap[match])
+    // 全角英数・記号 -> 半角
+    .replace(/[！-～]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+    // 全角スペース -> 半角スペース
+    .replace(/ /g, ' ');
 }
 
 // data.csv の読み込み
@@ -142,7 +164,7 @@ Papa.parse("data.csv", {
     rawData = results.data.slice(1);
     
     renderHeader();
-    renderRows(rawData.slice(0, 100)); // 初期表示は先頭100件
+    renderRows(rawData.slice(0, 100));
     document.getElementById('count').textContent = `全 ${rawData.length.toLocaleString()} 件（先頭100件を表示中）`;
   },
   error: function(err) {
@@ -150,25 +172,20 @@ Papa.parse("data.csv", {
   }
 });
 
-// ヘッダーの描画（2列目以降を縦書きクラス化）
 function renderHeader() {
   const tr = document.createElement('tr');
   headers.forEach((h, index) => {
     const th = document.createElement('th');
     th.textContent = h;
-    if (index > 0) {
-      th.classList.add('store-header');
-    }
+    if (index > 0) th.classList.add('store-header');
     tr.appendChild(th);
   });
   document.getElementById('tbl-head').appendChild(tr);
 }
 
-// 行データの描画
 function renderRows(rows) {
   const tbody = document.getElementById('tbl-body');
   tbody.innerHTML = '';
-  
   const fragment = document.createDocumentFragment();
   rows.forEach(row => {
     const tr = document.createElement('tr');
@@ -182,9 +199,9 @@ function renderRows(rows) {
   tbody.appendChild(fragment);
 }
 
-// 検索イベント処理（全角/半角を自動吸収して判定）
-document.getElementById('search').addEventListener('input', function(e) {
-  const query = normalizeText(e.target.value);
+// 絞り込み実行関数
+function executeFilter(val) {
+  const query = toHalfWidth(val).toLowerCase().trim();
   
   if (!query) {
     renderRows(rawData.slice(0, 100));
@@ -192,21 +209,41 @@ document.getElementById('search').addEventListener('input', function(e) {
     return;
   }
   
-  // 複数ワードのスペース区切り検索（AND検索）
   const keywords = query.split(/\s+/);
-  
   const matched = rawData.filter(row => {
-    const itemName = normalizeText(row[0]);
+    const itemName = toHalfWidth(row[0]).toLowerCase();
     return keywords.every(kw => itemName.includes(kw));
   });
 
-  renderRows(matched.slice(0, 300)); // 該当上位300件を描画
+  renderRows(matched.slice(0, 300));
   
   if (matched.length > 300) {
     document.getElementById('count').textContent = `該当 ${matched.length.toLocaleString()} 件（上位300件を表示中）`;
   } else {
     document.getElementById('count').textContent = `該当 ${matched.length.toLocaleString()} 件`;
   }
+}
+
+const searchInput = document.getElementById('search');
+
+// IME変換の監視（確定前に入力枠を書き換えると誤作動するため制御）
+searchInput.addEventListener('compositionstart', () => { isComposing = true; });
+searchInput.addEventListener('compositionend', (e) => {
+  isComposing = false;
+  // 確定した瞬間に検索ボックスの表示自体を半角化して検索
+  const half = toHalfWidth(searchInput.value);
+  searchInput.value = half;
+  executeFilter(half);
+});
+
+// 入力イベント（半角直接入力・コピペ対応）
+searchInput.addEventListener('input', (e) => {
+  if (isComposing) return;
+  const half = toHalfWidth(searchInput.value);
+  if (searchInput.value !== half) {
+    searchInput.value = half;
+  }
+  executeFilter(half);
 });
 </script>
 </body>
