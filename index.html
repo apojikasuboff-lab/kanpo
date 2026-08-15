@@ -5,20 +5,104 @@
 <title>品目実績検索</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
-  body { font-family: sans-serif; margin: 20px; }
-  #search { width: 300px; padding: 8px; font-size: 16px; margin-bottom: 12px; }
-  .table-container { max-height: 80vh; overflow: auto; border: 1px solid #ccc; }
-  table { border-collapse: collapse; width: 100%; white-space: nowrap; font-size: 13px; }
-  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: right; }
-  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #f9f9f9; z-index: 1; }
-  thead th { position: sticky; top: 0; background: #eee; z-index: 2; }
-  thead th:first-child { z-index: 3; }
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+    margin: 15px; 
+    color: #333;
+  }
+  .search-container {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #search { 
+    width: 320px; 
+    padding: 8px 12px; 
+    font-size: 15px; 
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    ime-mode: active;
+  }
+  #count {
+    font-size: 13px;
+    color: #666;
+  }
+  
+  /* 表のスクロールコンテナ */
+  .table-container { 
+    max-height: 82vh; 
+    overflow: auto; 
+    border: 1px solid #ccc; 
+    background: #fff;
+  }
+  table { 
+    border-collapse: separate; 
+    border-spacing: 0; 
+    font-size: 12px; 
+  }
+  th, td { 
+    border-right: 1px solid #e0e0e0; 
+    border-bottom: 1px solid #e0e0e0; 
+    padding: 6px 8px; 
+    text-align: right; 
+    white-space: nowrap;
+  }
+
+  /* 1列目（品目名）の固定 */
+  th:first-child, td:first-child { 
+    text-align: left; 
+    position: sticky; 
+    left: 0; 
+    background: #fdfdfd; 
+    z-index: 10; 
+    min-width: 220px;
+    max-width: 350px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 2px 0 3px -1px rgba(0,0,0,0.1);
+  }
+
+  /* 1行目（ヘッダー）の固定 */
+  thead th { 
+    position: sticky; 
+    top: 0; 
+    background: #f1f3f5; 
+    z-index: 20; 
+    font-weight: 600;
+  }
+  thead th:first-child { 
+    z-index: 30; 
+    vertical-align: bottom;
+    padding-bottom: 8px;
+  }
+
+  /* 店舗名ヘッダーの縦書き設定 */
+  .store-header {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1px;
+    height: 110px;        /* 縦書き領域の高さ（店舗名の長さに応じて調整可） */
+    vertical-align: bottom;
+    padding: 8px 4px;
+    min-width: 28px;
+  }
+
+  /* 行のホバー表示 */
+  tbody tr:hover td {
+    background-color: #f8f9fa;
+  }
+  tbody tr:hover td:first-child {
+    background-color: #edf2f7;
+  }
 </style>
 </head>
 <body>
 
-<input type="text" id="search" placeholder="品目名を入力（部分一致）...">
-<span id="count"></span>
+<div class="search-container">
+  <input type="text" id="search" placeholder="品目名を入力（全角・半角対応）...">
+  <span id="count">読み込み中...</span>
+</div>
 
 <div class="table-container">
   <table id="result-table">
@@ -31,53 +115,98 @@
 let rawData = [];
 let headers = [];
 
-// data.csv を読み込み
+// 全角英数・記号・スペースを半角に正規化する関数
+function normalizeText(str) {
+  if (!str) return '';
+  return str
+    // 全角英数を半角に変換
+    .replace(/[！-～]/g, function(s) {
+      return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+    })
+    // 全角スペースを半角スペースに変換
+    .replace(/ /g, ' ')
+    .toLowerCase()
+    .trim();
+}
+
+// data.csv の読み込み
 Papa.parse("data.csv", {
   download: true,
   skipEmptyLines: true,
   complete: function(results) {
+    if (!results.data || results.data.length === 0) {
+      document.getElementById('count').textContent = 'データが見つかりませんでした。';
+      return;
+    }
     headers = results.data[0];
     rawData = results.data.slice(1);
+    
     renderHeader();
     renderRows(rawData.slice(0, 100)); // 初期表示は先頭100件
+    document.getElementById('count').textContent = `全 ${rawData.length.toLocaleString()} 件（先頭100件を表示中）`;
+  },
+  error: function(err) {
+    document.getElementById('count').textContent = 'CSV読み込みエラー: ' + err.message;
   }
 });
 
+// ヘッダーの描画（2列目以降を縦書きクラス化）
 function renderHeader() {
   const tr = document.createElement('tr');
-  headers.forEach(h => {
+  headers.forEach((h, index) => {
     const th = document.createElement('th');
     th.textContent = h;
+    if (index > 0) {
+      th.classList.add('store-header');
+    }
     tr.appendChild(th);
   });
   document.getElementById('tbl-head').appendChild(tr);
 }
 
+// 行データの描画
 function renderRows(rows) {
   const tbody = document.getElementById('tbl-body');
   tbody.innerHTML = '';
+  
+  const fragment = document.createDocumentFragment();
   rows.forEach(row => {
     const tr = document.createElement('tr');
     row.forEach(cell => {
       const td = document.createElement('td');
-      td.textContent = cell;
+      td.textContent = cell !== undefined ? cell : '';
       tr.appendChild(td);
     });
-    tbody.appendChild(tr);
+    fragment.appendChild(tr);
   });
+  tbody.appendChild(fragment);
 }
 
-// 検索イベント（1列目を部分一致検索、上位200件まで描画）
+// 検索イベント処理（全角/半角を自動吸収して判定）
 document.getElementById('search').addEventListener('input', function(e) {
-  const query = e.target.value.toLowerCase().trim();
+  const query = normalizeText(e.target.value);
+  
   if (!query) {
     renderRows(rawData.slice(0, 100));
-    document.getElementById('count').textContent = `全 ${rawData.length} 件中 100 件表示`;
+    document.getElementById('count').textContent = `全 ${rawData.length.toLocaleString()} 件（先頭100件を表示中）`;
     return;
   }
-  const matched = rawData.filter(row => row[0] && row[0].toLowerCase().includes(query));
-  renderRows(matched.slice(0, 200));
-  document.getElementById('count').textContent = `該当 ${matched.length} 件（表示最大200件）`;
+  
+  // 複数ワードのスペース区切り検索（AND検索）
+  const keywords = query.split(/\s+/);
+  
+  const matched = rawData.filter(row => {
+    const itemName = normalizeText(row[0]);
+    return keywords.every(kw => itemName.includes(kw));
+  });
+
+  renderRows(matched.slice(0, 300)); // 該当上位300件を描画
+  
+  if (matched.length > 300) {
+    document.getElementById('count').textContent = `該当 ${matched.length.toLocaleString()} 件（上位300件を表示中）`;
+  } else {
+    document.getElementById('count').textContent = `該当 ${matched.length.toLocaleString()} 件`;
+  }
 });
 </script>
 </body>
