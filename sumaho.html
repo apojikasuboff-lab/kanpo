@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>医薬品GS1スキャナー</title>
-  <!-- GS1-128 / DataMatrix / QR / JAN 対応ライブラリ -->
+  <!-- ライブラリ読み込み -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body {
@@ -19,10 +19,11 @@
       margin: 0 auto;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      background: #000;
+      min-height: 250px;
     }
     .result-box {
-      margin-top: 20px;
+      margin-top: 16px;
       padding: 16px;
       background: white;
       border-radius: 8px;
@@ -32,7 +33,7 @@
       margin-right: auto;
     }
     .drug-name {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: bold;
       color: #1e293b;
       margin-top: 8px;
@@ -52,6 +53,17 @@
     }
     .match { background: #dcfce7; color: #166534; }
     .unmatch { background: #fee2e2; color: #991b1b; }
+    .btn-start {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      font-weight: bold;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -59,14 +71,16 @@
   <h3>医薬品GS1バーコードリーダー</h3>
   <div id="reader"></div>
 
+  <!-- iOSで自動起動がブロックされた場合の再試行ボタン -->
+  <button id="startBtn" class="btn-start" style="display: none;" onclick="initCamera()">カメラを起動する</button>
+
   <div class="result-box">
     <div id="statusBadge" class="status-badge match" style="display: none;"></div>
-    <div class="code-display" id="rawCode">バーコードを枠内に合わせてください</div>
+    <div class="code-display" id="rawCode">カメラを初期化中...</div>
     <div class="drug-name" id="drugName">-</div>
   </div>
 
   <script>
-    // --- 医薬品マスター ---
     const drugMaster = {
       "04987123456789": "アムロジピン錠5mg「トーワ」 100錠",
       "14987123456786": "アムロジピン錠5mg「トーワ」 1000錠",
@@ -74,13 +88,11 @@
       "04987080906971": "クラリスロマイシン錠200mg「日医工」 100錠"
     };
 
-    // GS1文字列からGTIN（14桁）を抽出
     function extractGTIN(rawText) {
       const match = rawText.match(/(?:\(01\)|^01)?(\d{14})/);
       return match ? match[1] : rawText.trim();
     }
 
-    // 読み取り成功時の処理
     function onScanSuccess(decodedText, decodedResult) {
       const gtin = extractGTIN(decodedText);
       const matchedName = drugMaster[gtin];
@@ -89,7 +101,7 @@
       const drugNameEl = document.getElementById('drugName');
       const badgeEl = document.getElementById('statusBadge');
 
-      rawCodeEl.textContent = `読取コード: ${decodedText} (GTIN: ${gtin})`;
+      rawCodeEl.textContent = `読取: ${decodedText} (GTIN: ${gtin})`;
       badgeEl.style.display = 'inline-block';
 
       if (matchedName) {
@@ -103,41 +115,52 @@
       }
     }
 
-    // ==========================================
-    // ▼ ここからが差し替え・改善した設定部分 ▼
-    // ==========================================
-    const formatsToSupport = [
-      Html5QrcodeSupportedFormats.DATA_MATRIX, // 2次元 GS1
-      Html5QrcodeSupportedFormats.CODE_128,    // GS1-128
-      Html5QrcodeSupportedFormats.EAN_13       // JANコード
-    ];
+    async function initCamera() {
+      const rawCodeEl = document.getElementById('rawCode');
+      const startBtn = document.getElementById('startBtn');
+      rawCodeEl.textContent = "カメラを起動しています...";
+      startBtn.style.display = "none";
 
-    const html5QrCode = new Html5Qrcode("reader");
+      try {
+        const html5QrCode = new Html5Qrcode("reader");
 
-    const config = {
-      fps: 15,
-      qrbox: { width: 280, height: 180 },
-      formatsToSupport: formatsToSupport,
-      experimentalFeatures: {
-        useBarCodeDetectorIfSupported: true // 高速ブラウザAPIを使用
+        // iOSに優しいカメラ設定（facingMode: "environment" のみで起動）
+        const cameraConfig = { facingMode: "environment" };
+
+        const config = {
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            // 画面サイズに応じた認識枠
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            return {
+              width: Math.floor(minEdge * 0.8),
+              height: Math.floor(minEdge * 0.5)
+            };
+          },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
+        };
+
+        await html5QrCode.start(
+          cameraConfig,
+          config,
+          onScanSuccess,
+          (err) => {} // フレーム毎のエラーはスキップ
+        );
+
+        rawCodeEl.textContent = "バーコードを枠内に合わせてください";
+
+      } catch (err) {
+        console.error("起動失敗:", err);
+        rawCodeEl.textContent = `エラー: ${err?.name || err} (HTTPS環境か確認してください)`;
+        startBtn.style.display = "inline-block";
       }
-    };
+    }
 
-    // 高解像度（フルHD）を指定してカメラ起動
-    html5QrCode.start(
-      {
-        facingMode: "environment",
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      config,
-      onScanSuccess,
-      (errorMessage) => {
-        // スキャン試行中の非認識フレームは無視
-      }
-    ).catch((err) => {
-      console.error("カメラ起動エラー:", err);
-      document.getElementById('rawCode').textContent = "カメラの起動に失敗しました（HTTPS環境を確認してください）";
+    // 画面ロード時に実行
+    window.addEventListener('DOMContentLoaded', () => {
+      initCamera();
     });
   </script>
 </body>
