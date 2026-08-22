@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>医薬品GS1スキャナー</title>
+  <!-- GS1-128 / DataMatrix / QR / JAN 対応ライブラリ -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 16px;
+      text-align: center;
+      background-color: #f8fafc;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .result-box {
+      margin-top: 20px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .drug-name {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #1e293b;
+      margin-top: 8px;
+    }
+    .code-display {
+      font-size: 0.85rem;
+      color: #64748b;
+      word-break: break-all;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .match { background: #dcfce7; color: #166534; }
+    .unmatch { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+
+  <h3>医薬品GS1バーコードリーダー</h3>
+  <div id="reader"></div>
+
+  <div class="result-box">
+    <div id="statusBadge" class="status-badge match" style="display: none;"></div>
+    <div class="code-display" id="rawCode">バーコードを枠内に合わせてください</div>
+    <div class="drug-name" id="drugName">-</div>
+  </div>
+
+  <script>
+    // --- 医薬品マスター（GS1コード / GTIN と薬品名のマップ） ---
+    // ※ プレフィックス(01)を含む14桁GTIN、またはJANコード等をキーにします
+    const drugMaster = {
+      "04987123456789": "アムロジピン錠5mg「トーワ」 100錠",
+      "14987123456786": "アムロジピン錠5mg「トーワ」 1000錠",
+      "04987000111222": "ロキソプロフェンNa錠60mg「サワイ」 100錠",
+      "04987999888777": "クラリスロマイシン錠200mg「日医工」 100錠"
+    };
+
+    // GS1文字列からGTIN（商品コード14桁）を抽出するヘルパー
+    function extractGTIN(rawText) {
+      // (01)04987... や 0104987... のパターンからGTINを取り出す
+      const match = rawText.match(/(?:\(01\)|^01)?(\d{14})/);
+      return match ? match[1] : rawText.trim();
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      const gtin = extractGTIN(decodedText);
+      const matchedName = drugMaster[gtin];
+
+      const rawCodeEl = document.getElementById('rawCode');
+      const drugNameEl = document.getElementById('drugName');
+      const badgeEl = document.getElementById('statusBadge');
+
+      rawCodeEl.textContent = `読取コード: ${decodedText} (GTIN: ${gtin})`;
+      badgeEl.style.display = 'inline-block';
+
+      if (matchedName) {
+        badgeEl.textContent = "照合一致";
+        badgeEl.className = "status-badge match";
+        drugNameEl.textContent = matchedName;
+      } else {
+        badgeEl.textContent = "未登録コード";
+        badgeEl.className = "status-badge unmatch";
+        drugNameEl.textContent = "マスタに該当する医薬品がありません";
+      }
+    }
+
+    // カメラの初期化とスキャン開始
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader",
+      {
+        fps: 15,
+        qrbox: { width: 280, height: 180 }, // 読み取り枠
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true // ライト点灯ボタン（対応機種のみ）
+      },
+      /* verbose= */ false
+    );
+
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+</body>
+</html>
