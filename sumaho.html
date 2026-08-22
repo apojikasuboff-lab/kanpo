@@ -66,22 +66,21 @@
   </div>
 
   <script>
-    // --- 医薬品マスター（GS1コード / GTIN と薬品名のマップ） ---
-    // ※ プレフィックス(01)を含む14桁GTIN、またはJANコード等をキーにします
+    // --- 医薬品マスター ---
     const drugMaster = {
       "04987123456789": "アムロジピン錠5mg「トーワ」 100錠",
       "14987123456786": "アムロジピン錠5mg「トーワ」 1000錠",
       "04987000111222": "ロキソプロフェンNa錠60mg「サワイ」 100錠",
-      "04987080906971": "オルメサルタンOD20「サワイ」"
+      "04987080906971": "クラリスロマイシン錠200mg「日医工」 100錠"
     };
 
-    // GS1文字列からGTIN（商品コード14桁）を抽出するヘルパー
+    // GS1文字列からGTIN（14桁）を抽出
     function extractGTIN(rawText) {
-      // (01)04987... や 0104987... のパターンからGTINを取り出す
       const match = rawText.match(/(?:\(01\)|^01)?(\d{14})/);
       return match ? match[1] : rawText.trim();
     }
 
+    // 読み取り成功時の処理
     function onScanSuccess(decodedText, decodedResult) {
       const gtin = extractGTIN(decodedText);
       const matchedName = drugMaster[gtin];
@@ -104,19 +103,42 @@
       }
     }
 
-    // カメラの初期化とスキャン開始
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader",
-      {
-        fps: 15,
-        qrbox: { width: 280, height: 180 }, // 読み取り枠
-        aspectRatio: 1.0,
-        showTorchButtonIfSupported: true // ライト点灯ボタン（対応機種のみ）
-      },
-      /* verbose= */ false
-    );
+    // ==========================================
+    // ▼ ここからが差し替え・改善した設定部分 ▼
+    // ==========================================
+    const formatsToSupport = [
+      Html5QrcodeSupportedFormats.DATA_MATRIX, // 2次元 GS1
+      Html5QrcodeSupportedFormats.CODE_128,    // GS1-128
+      Html5QrcodeSupportedFormats.EAN_13       // JANコード
+    ];
 
-    html5QrcodeScanner.render(onScanSuccess);
+    const html5QrCode = new Html5Qrcode("reader");
+
+    const config = {
+      fps: 15,
+      qrbox: { width: 280, height: 180 },
+      formatsToSupport: formatsToSupport,
+      experimentalFeatures: {
+        useBarCodeDetectorIfSupported: true // 高速ブラウザAPIを使用
+      }
+    };
+
+    // 高解像度（フルHD）を指定してカメラ起動
+    html5QrCode.start(
+      {
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      config,
+      onScanSuccess,
+      (errorMessage) => {
+        // スキャン試行中の非認識フレームは無視
+      }
+    ).catch((err) => {
+      console.error("カメラ起動エラー:", err);
+      document.getElementById('rawCode').textContent = "カメラの起動に失敗しました（HTTPS環境を確認してください）";
+    });
   </script>
 </body>
 </html>
