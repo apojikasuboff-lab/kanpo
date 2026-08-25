@@ -34,6 +34,12 @@
   <h2 style="text-align: center; color: #444;">漢方 総重量計算</h2>
 
   <div class="card">
+    <!-- 追加：大箱入力欄 -->
+    <div class="input-group">
+      <label for="largeBox">大箱 <span class="note">(×189包)</span></label>
+      <input type="number" id="largeBox" placeholder="0" inputmode="numeric">
+    </div>
+
     <div class="input-group">
       <label for="box">箱数 <span class="note">(×42包)</span></label>
       <input type="number" id="box" placeholder="0" inputmode="numeric">
@@ -63,7 +69,6 @@
       <div class="result-item result-30">
         3.0 g / 包 <span class="weight-val" id="out30">0.0 g</span>
       </div>
-      <!-- 追加したEKT6の表示行 -->
       <div class="result-item result-ekt6">
         EKT6 <span class="weight-val" id="outEkt6">0.0 g</span>
       </div>
@@ -71,6 +76,7 @@
   </div>
 
   <script>
+    const elLargeBox = document.getElementById('largeBox');
     const elBox = document.getElementById('box');
     const elBundle = document.getElementById('bundle');
     const elPack = document.getElementById('pack');
@@ -80,14 +86,16 @@
     const outEkt6 = document.getElementById('outEkt6');
 
     function calcTotalPacks() {
+      const largeBox = parseInt(elLargeBox.value, 10) || 0;
       const box = parseInt(elBox.value, 10) || 0;
       const bundle = parseInt(elBundle.value, 10) || 0;
       const pack = parseInt(elPack.value, 10) || 0;
       
-      const total = (box * 42) + (bundle * 21) + pack;
+      // 合計包数: 大箱(189) + 箱(42) + 束(21) + バラ(1)
+      const total = (largeBox * 189) + (box * 42) + (bundle * 21) + pack;
       elTotal.value = total > 0 ? total : '';
       
-      // 箱・束・包から直接 EKT6 を計算 (箱×1764 + 束×126 + 包×3)
+      // EKT6の計算: 大箱を除外 (箱×1764 + 束×126 + 包×3)
       const weightEkt6 = (box * 1764) + (bundle * 126) + (pack * 3);
       updateWeights(total, weightEkt6);
     }
@@ -95,7 +103,7 @@
     function updateWeights(totalPacks, weightEkt6 = null) {
       const weight25 = totalPacks * 2.5;
       const weight30 = totalPacks * 3.0;
-      // weightEkt6が渡されない場合（合計包数を手入力した時）は totalPacks × 3 で算出
+      // 合計包数欄を手入力した場合は totalPacks × 3 で計算
       const ekt6 = (weightEkt6 !== null) ? weightEkt6 : (totalPacks * 3.0);
 
       out25.innerText = weight25.toFixed(1) + ' g';
@@ -103,6 +111,7 @@
       outEkt6.innerText = ekt6.toFixed(1) + ' g';
     }
 
+    elLargeBox.addEventListener('input', calcTotalPacks);
     elBox.addEventListener('input', calcTotalPacks);
     elBundle.addEventListener('input', calcTotalPacks);
     elPack.addEventListener('input', calcTotalPacks);
@@ -111,6 +120,7 @@
       const total = parseInt(elTotal.value, 10) || 0;
       updateWeights(total);
       
+      elLargeBox.value = '';
       elBox.value = '';
       elBundle.value = '';
       elPack.value = '';
