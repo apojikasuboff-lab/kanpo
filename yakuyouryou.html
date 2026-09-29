@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小児抗アレルギー薬 用量計算機</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen py-8 px-4 flex justify-center items-start">
+
+    <div class="w-full max-w-2xl space-y-5">
+        
+        <!-- メイン入力カード -->
+        <div class="bg-white shadow-md rounded-2xl p-6 border border-slate-200">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-5 gap-2">
+                <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-pills text-blue-600"></i> 小児アレルギー薬 用量計算
+                </h1>
+                <span id="currentDateBadge" class="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-full font-medium self-start sm:self-auto"></span>
+            </div>
+
+            <div class="space-y-5">
+                <!-- 薬剤選択ボタン群（初期状態：全解除） -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-slate-700">
+                            計算する薬剤を選択（タップしてON）
+                        </label>
+                        <div class="flex items-center gap-2 text-xs">
+                            <button type="button" onclick="setAllDrugs(true)" class="text-blue-600 hover:underline">全選択</button>
+                            <span class="text-slate-300">|</span>
+                            <button type="button" onclick="setAllDrugs(false)" class="text-slate-500 hover:underline">全解除</button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="drugButtonContainer">
+                        <!-- レボセチリジン -->
+                        <button type="button" id="btn-levo" onclick="toggleDrug('levo')"
+                            class="drug-btn flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-semibold transition-all">
+                            <span class="text-sm">レボセチリジン</span>
+                            <span class="text-[10px] font-normal opacity-75 mt-0.5">ザイザル等</span>
+                        </button>
+                        <!-- フェキソフェナジン -->
+                        <button type="button" id="btn-fexo" onclick="toggleDrug('fexo')"
+                            class="drug-btn flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-semibold transition-all">
+                            <span class="text-sm">フェキソフェナジン</span>
+                            <span class="text-[10px] font-normal opacity-75 mt-0.5">アレグラ等</span>
+                        </button>
+                        <!-- オロパタジン -->
+                        <button type="button" id="btn-olo" onclick="toggleDrug('olo')"
+                            class="drug-btn flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-semibold transition-all">
+                            <span class="text-sm">オロパタジン</span>
+                            <span class="text-[10px] font-normal opacity-75 mt-0.5">アレロック等</span>
+                        </button>
+                        <!-- モンテルカスト -->
+                        <button type="button" id="btn-mont" onclick="toggleDrug('mont')"
+                            class="drug-btn flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-semibold transition-all">
+                            <span class="text-sm">モンテルカスト</span>
+                            <span class="text-[10px] font-normal opacity-75 mt-0.5">シングレア等</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 生まれ年（平成 / 令和） -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                    <div>
+                        <label for="heiseiYear" class="block text-xs font-semibold text-slate-700 mb-1">生まれ年（平成）</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3 text-sm text-slate-400 font-medium">平</span>
+                            <input type="number" id="heiseiYear" min="1" max="31" placeholder="例: 22"
+                                class="w-full pl-8 pr-8 py-2.5 border border-slate-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                                oninput="handleYearInput('heisei')">
+                            <span class="absolute right-3 text-sm text-slate-400 font-medium">年</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="reiwaYear" class="block text-xs font-semibold text-slate-700 mb-1">生まれ年（令和）</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3 text-sm text-slate-400 font-medium">令</span>
+                            <input type="number" id="reiwaYear" min="1" max="20" placeholder="例: 5"
+                                class="w-full pl-8 pr-8 py-2.5 border border-slate-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                                oninput="handleYearInput('reiwa')">
+                            <span class="absolute right-3 text-sm text-slate-400 font-medium">年</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生まれ月 & データを消す -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <div class="sm:col-span-8">
+                        <div class="flex items-center justify-between mb-1">
+                            <label for="birthMonth" class="block text-xs font-semibold text-slate-700">生まれ月</label>
+                            <span id="monthRequiredBadge" class="text-[11px] text-slate-400">通常は任意</span>
+                        </div>
+                        <select id="birthMonth"
+                            class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-base bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                            onchange="calculateSelectedDoses()">
+                            <option value="">指定なし</option>
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-4">
+                        <button type="button" onclick="clearData()"
+                            class="w-full py-2.5 px-3 border border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-600 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-rotate-left text-slate-400"></i> データを消す
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アラート表示用（境界年齢時の警告等） -->
+            <div id="statusAlert" class="hidden mt-4 p-3 rounded-xl border text-xs"></div>
+        </div>
+
+        <!-- 判定年齢表示バー -->
+        <div id="ageDisplayBar" class="hidden bg-slate-800 text-white px-5 py-3 rounded-xl flex items-center justify-between shadow-sm">
+            <span class="text-xs text-slate-300 font-medium">判定年齢</span>
+            <span id="determinedAgeText" class="text-base font-bold"></span>
+        </div>
+
+        <!-- 用量カード表示エリア -->
+        <div id="resultCards" class="grid grid-cols-1 gap-3.5">
+            <div id="initialPlaceholder" class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 shadow-sm">
+                <i class="fa-solid fa-hand-pointer text-3xl mb-2 text-slate-300"></i>
+                <p class="text-sm font-medium text-slate-600">薬剤を選択してください</p>
+                <p class="text-xs text-slate-400 mt-1">上部の薬剤ボタンをタップしてONにすると用量が表示されます</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const TODAY = new Date();
+
+        // 選択状態管理（デフォルト：全解除 = すべてfalse）
+        const selectedDrugs = {
+            levo: false,
+            fexo: false,
+            olo: false,
+            mont: false
+        };
+
+        const activeClass = "bg-blue-50 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-500";
+        const inactiveClass = "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100";
+
+        function updateDrugButtonStyles() {
+            for (const key in selectedDrugs) {
+                const btn = document.getElementById(`btn-${key}`);
+                if (selectedDrugs[key]) {
+                    btn.className = `drug-btn flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-semibold transition-all ${activeClass}`;
+                } else {
+                    btn.className = `drug-btn flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-semibold transition-all ${inactiveClass}`;
+                }
+            }
+        }
+
+        function toggleDrug(key) {
+            selectedDrugs[key] = !selectedDrugs[key];
+            updateDrugButtonStyles();
+            calculateSelectedDoses();
+        }
+
+        function setAllDrugs(status) {
+            for (const key in selectedDrugs) {
+                selectedDrugs[key] = status;
+            }
+            updateDrugButtonStyles();
+            calculateSelectedDoses();
+        }
+
+        function handleYearInput(source) {
+            const heiseiInput = document.getElementById('heiseiYear');
+            const reiwaInput = document.getElementById('reiwaYear');
+
+            if (source === 'heisei' && heiseiInput.value !== '') {
+                reiwaInput.value = '';
+            } else if (source === 'reiwa' && reiwaInput.value !== '') {
+                heiseiInput.value = '';
+            }
+            calculateSelectedDoses();
+        }
+
+        function clearData() {
+            document.getElementById('heiseiYear').value = '';
+            document.getElementById('reiwaYear').value = '';
+            document.getElementById('birthMonth').value = '';
+
+            const monthBadge = document.getElementById('monthRequiredBadge');
+            const monthInput = document.getElementById('birthMonth');
+            monthBadge.textContent = "通常は任意";
+            monthBadge.className = "text-[11px] text-slate-400";
+            monthInput.classList.remove("border-amber-400", "ring-1", "ring-amber-300");
+
+            document.getElementById('statusAlert').className = "hidden";
+            document.getElementById('ageDisplayBar').classList.add("hidden");
+            
+            showNoSelectionPlaceholder();
+            document.getElementById('heiseiYear').focus();
+        }
+
+        function showNoSelectionPlaceholder() {
+            const hasActiveDrugs = Object.values(selectedDrugs).some(v => v);
+            const resultCards = document.getElementById('resultCards');
+
+            if (!hasActiveDrugs) {
+                resultCards.innerHTML = `
+                    <div id="initialPlaceholder" class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 shadow-sm">
+                        <i class="fa-solid fa-hand-pointer text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">薬剤を選択してください</p>
+                        <p class="text-xs text-slate-400 mt-1">上部の薬剤ボタンをタップしてONにすると用量が表示されます</p>
+                    </div>
+                `;
+            } else {
+                resultCards.innerHTML = `
+                    <div id="initialPlaceholder" class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 shadow-sm">
+                        <i class="fa-solid fa-calculator text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">生まれ年を入力してください</p>
+                        <p class="text-xs text-slate-400 mt-1">平成または令和の年を入力すると用量が計算されます</p>
+                    </div>
+                `;
+            }
+        }
+
+        function isSelectedDrugBoundary(diffYear) {
+            const boundaries = new Set();
+
+            if (selectedDrugs.levo) {
+                [0, 1, 7, 8, 15, 16].forEach(y => boundaries.add(y));
+            }
+            if (selectedDrugs.fexo) {
+                [0, 1, 2, 3, 7, 8, 12, 13].forEach(y => boundaries.add(y));
+            }
+            if (selectedDrugs.olo) {
+                [2, 3, 7, 8].forEach(y => boundaries.add(y));
+            }
+            if (selectedDrugs.mont) {
+                [1, 2, 6, 7, 15, 16].forEach(y => boundaries.add(y));
+            }
+
+            return boundaries.has(diffYear);
+        }
+
+        function calculateSelectedDoses() {
+            const heiseiVal = document.getElementById('heiseiYear').value;
+            const reiwaVal = document.getElementById('reiwaYear').value;
+            const monthInput = document.getElementById('birthMonth');
+            const monthBadge = document.getElementById('monthRequiredBadge');
+            const statusAlert = document.getElementById('statusAlert');
+            const ageDisplayBar = document.getElementById('ageDisplayBar');
+            const determinedAgeText = document.getElementById('determinedAgeText');
+            const resultCards = document.getElementById('resultCards');
+
+            // 薬剤が1つも選択されていない場合
+            const activeDrugKeys = Object.keys(selectedDrugs).filter(k => selectedDrugs[k]);
+            if (activeDrugKeys.length === 0) {
+                statusAlert.className = "hidden";
+                ageDisplayBar.classList.add("hidden");
+                showNoSelectionPlaceholder();
+                return;
+            }
+
+            const monthVal = monthInput.value;
+            const hasMonth = monthVal !== "";
+
+            let birthYear = null;
+            let eraName = "";
+
+            if (heiseiVal !== '') {
+                const h = parseInt(heiseiVal, 10);
+                if (!isNaN(h) && h >= 1) {
+                    birthYear = h + 1988;
+                    eraName = `平成${h}年`;
+                }
+            } else if (reiwaVal !== '') {
+                const r = parseInt(reiwaVal, 10);
+                if (!isNaN(r) && r >= 1) {
+                    birthYear = r + 2018;
+                    eraName = `令和${r}年`;
+                }
+            }
+
+            // 年が未入力
+            if (!birthYear) {
+                statusAlert.className = "hidden";
+                ageDisplayBar.classList.add("hidden");
+                showNoSelectionPlaceholder();
+                return;
+            }
+
+            const diffYear = TODAY.getFullYear() - birthYear;
+            const isBoundary = isSelectedDrugBoundary(diffYear);
+
+            if (isBoundary) {
+                monthBadge.textContent = "※ 境界年齢のため必須";
+                monthBadge.className = "text-[11px] text-amber-600 font-bold";
+                monthInput.classList.add("border-amber-400", "ring-1", "ring-amber-300");
+            } else {
+                monthBadge.textContent = "通常は任意";
+                monthBadge.className = "text-[11px] text-slate-400";
+                monthInput.classList.remove("border-amber-400", "ring-1", "ring-amber-300");
+            }
+
+            // 未来年チェック
+            if (birthYear > TODAY.getFullYear() || (birthYear === TODAY.getFullYear() && hasMonth && parseInt(monthVal, 10) > (TODAY.getMonth() + 1))) {
+                statusAlert.className = "mt-4 p-3 rounded-xl border text-xs bg-red-50 border-red-200 text-red-700 flex items-center gap-2";
+                statusAlert.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> 未来の年月が入力されています。`;
+                ageDisplayBar.classList.add("hidden");
+                resultCards.innerHTML = '';
+                return;
+            }
+
+            // 境界年齢で月が未入力
+            if (isBoundary && !hasMonth) {
+                statusAlert.className = "mt-4 p-3 rounded-xl border text-xs bg-amber-50 border-amber-300 text-amber-800 flex items-center gap-2";
+                statusAlert.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>${eraName}生まれ（境界年齢）：</strong>選択された薬剤の用量確定のため、生まれ月を選択してください。`;
+                ageDisplayBar.classList.add("hidden");
+                resultCards.innerHTML = '';
+                return;
+            }
+
+            statusAlert.className = "hidden";
+
+            // 月齢・年齢の算出
+            const birthMonth = hasMonth ? parseInt(monthVal, 10) : 6;
+            const birthDate = new Date(birthYear, birthMonth - 1, 1);
+
+            let months = (TODAY.getFullYear() - birthDate.getFullYear()) * 12 + (TODAY.getMonth() - birthDate.getMonth());
+            if (months < 0) months = 0;
+            const years = Math.floor(months / 12);
+
+            const ageText = hasMonth 
+                ? (years < 1 ? `生後 ${months} ヶ月` : `満 ${years} 歳 (${months}ヶ月)`)
+                : `満約 ${diffYear} 歳 (月未指定)`;
+
+            ageDisplayBar.classList.remove("hidden");
+            determinedAgeText.textContent = `${eraName}（${hasMonth ? birthMonth + '月' : '年中盤換算'}）/ ${ageText}`;
+
+            // 選択された薬剤のみ判定
+            const activeDrugResults = [];
+            if (selectedDrugs.levo) activeDrugResults.push(getLevocetirizine(months, years));
+            if (selectedDrugs.fexo) activeDrugResults.push(getFexofenadine(months, years));
+            if (selectedDrugs.olo) activeDrugResults.push(getOlopatadine(months, years));
+            if (selectedDrugs.mont) activeDrugResults.push(getMontelukast(months, years));
+
+            // カード生成
+            resultCards.innerHTML = activeDrugResults.map(drug => `
+                <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm transition-all">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
+                        <span class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full ${drug.dotColor}"></span>
+                            ${drug.name}
+                        </span>
+                        <span class="text-xs text-slate-400 font-medium">${drug.category}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
+                        <p class="text-lg sm:text-xl font-bold ${drug.textColor} leading-snug break-words">
+                            ${drug.dose}
+                        </p>
+                        <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                            <i class="fa-solid fa-tag text-[10px] text-slate-400"></i> ${drug.range}
+                        </p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 1. レボセチリジン
+        function getLevocetirizine(months, years) {
+            let dose = "", range = "", dotColor = "bg-blue-500", textColor = "text-blue-900";
+            if (months < 6) {
+                dose = "対象外";
+                range = "生後6ヶ月未満";
+                dotColor = "bg-rose-500";
+                textColor = "text-rose-600";
+            } else if (months < 12) {
+                dose = "1回 2.5mL or 0.25g ／ 1日1回";
+                range = "6ヶ月以上1歳未満";
+            } else if (years < 7) {
+                dose = "1回 2.5mL or 0.25g ／ 1日2回";
+                range = "1歳以上7歳未満";
+            } else if (years < 15) {
+                dose = "1回 5mL or 0.5g or 2.5mg1錠 ／ 1日2回";
+                range = "7歳以上15歳未満";
+            } else {
+                dose = "成人用量（5mg 1日1回 就寝前）";
+                range = "15歳以上";
+                dotColor = "bg-slate-400";
+                textColor = "text-slate-800";
+            }
+            return { name: "レボセチリジン", category: "ザイザル等", dose, range, dotColor, textColor };
+        }
+
+        // 2. フェキソフェナジン
+        function getFexofenadine(months, years) {
+            let dose = "", range = "", dotColor = "bg-emerald-500", textColor = "text-emerald-900";
+            if (months < 6) {
+                dose = "対象外";
+                range = "生後6ヶ月未満";
+                dotColor = "bg-rose-500";
+                textColor = "text-rose-600";
+            } else if (years < 2) {
+                dose = "1回 15mg（0.3g） ／ 1日2回";
+                range = "6ヵ月以上2歳未満";
+            } else if (years < 7) {
+                dose = "1回 30mg（0.6g） ／ 1日2回";
+                range = "2歳以上7歳未満";
+            } else if (years < 12) {
+                dose = "1回 30mg（0.6gまたは錠剤） ／ 1日2回";
+                range = "7歳以上12歳未満";
+            } else {
+                dose = "成人用量（1回60mg 1日2回）";
+                range = "12歳以上";
+                dotColor = "bg-slate-400";
+                textColor = "text-slate-800";
+            }
+            return { name: "フェキソフェナジン", category: "アレグラ等", dose, range, dotColor, textColor };
+        }
+
+        // 3. オロパタジン
+        function getOlopatadine(months, years) {
+            let dose = "", range = "", dotColor = "bg-violet-500", textColor = "text-violet-900";
+            if (years < 2) {
+                dose = "対象外";
+                range = "2歳未満";
+                dotColor = "bg-rose-500";
+                textColor = "text-rose-600";
+            } else if (years < 7) {
+                dose = "1回 2.5mg（0.5g） ／ 1日2回";
+                range = "2歳以上7歳未満";
+            } else {
+                dose = "1回 5mg（1g） ／ 1日2回";
+                range = "7歳以上（小児〜成人）";
+            }
+            return { name: "オロパタジン", category: "アレロック等", dose, range, dotColor, textColor };
+        }
+
+        // 4. モンテルカスト
+        function getMontelukast(months, years) {
+            let dose = "", range = "", dotColor = "bg-amber-500", textColor = "text-amber-950";
+            if (years < 1) {
+                dose = "対象外";
+                range = "1歳未満";
+                dotColor = "bg-rose-500";
+                textColor = "text-rose-600";
+            } else if (years < 6) {
+                dose = "細粒4mg ／ 1日1回（就寝前）";
+                range = "1歳以上6歳未満";
+            } else if (years < 15) {
+                dose = "チュアブル5mg ／ 1日1回（就寝前）";
+                range = "6歳以上15歳未満";
+            } else {
+                dose = "成人用量（10mg錠 1日1回 就寝前）";
+                range = "15歳以上";
+                dotColor = "bg-slate-400";
+                textColor = "text-slate-800";
+            }
+            return { name: "モンテルカスト", category: "シングレア・キプレス等", dose, range, dotColor, textColor };
+        }
+
+        window.onload = function() {
+            const y = TODAY.getFullYear();
+            const m = TODAY.getMonth() + 1;
+            const d = TODAY.getDate();
+            document.getElementById('currentDateBadge').textContent = `基準日: ${y}年${m}月${d}日`;
+            updateDrugButtonStyles();
+        };
+    </script>
+</body>
+</html>
